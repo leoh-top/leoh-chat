@@ -116,7 +116,7 @@ jobs:
         run: |
           sha256sum leoh-chat-mac.dmg leoh-chat-web.tar.gz > SHA256SUMS
           tag="${GITHUB_REF_NAME}"
-          [ "$GITHUB_REF_TYPE" = tag ] || tag="build-$BUILD"
+          [ "$GITHUB_REF_TYPE" = tag ] || tag="build-$BUILD-$GITHUB_RUN_NUMBER"
           gh release create "$tag" leoh-chat-mac.dmg leoh-chat-web.tar.gz SHA256SUMS \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "leoh-chat $VERSION ($BUILD)" \
