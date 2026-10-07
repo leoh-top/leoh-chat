@@ -10,14 +10,18 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: build
+  cancel-in-progress: false
+
 jobs:
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       build: ${{ steps.v.outputs.build }}
       version: ${{ steps.v.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: v
         run: |
           . ./versions.env
@@ -26,9 +30,9 @@ jobs:
 
   web:
     needs: prepare
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Fetch FluffyChat and apply leoh-chat changes
         run: |
           . ./versions.env
@@ -53,7 +57,7 @@ jobs:
           flutter build web --release --no-web-resources-cdn --base-href / \
             --build-name ${{ needs.prepare.outputs.version }} --build-number ${{ needs.prepare.outputs.build }}
           tar -czf ../leoh-chat-web.tar.gz -C build/web .
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: web
           path: leoh-chat-web.tar.gz
@@ -62,7 +66,7 @@ jobs:
     needs: prepare
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Fetch FluffyChat and apply leoh-chat changes
         run: |
           . ./versions.env
@@ -94,18 +98,18 @@ jobs:
           codesign --verify --deep "$app"
           mkdir dmg && cp -R "$app" dmg/ && ln -s /Applications dmg/Applications
           hdiutil create -volname leoh-chat -srcfolder dmg -ov -format UDZO leoh-chat-mac.dmg
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos
           path: leoh-chat-mac.dmg
 
   release:
     needs: [prepare, web, macos]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           merge-multiple: true
       - name: Publish release
@@ -117,7 +121,14 @@ jobs:
           sha256sum leoh-chat-mac.dmg leoh-chat-web.tar.gz > SHA256SUMS
           tag="${GITHUB_REF_NAME}"
           [ "$GITHUB_REF_TYPE" = tag ] || tag="build-$BUILD-$GITHUB_RUN_NUMBER"
-          gh release create "$tag" leoh-chat-mac.dmg leoh-chat-web.tar.gz SHA256SUMS \
-            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "leoh-chat $VERSION ($BUILD)" \
-            --notes "macOS（Apple 芯片）与网页版。安卓版见 https://chat.leoh.top/download"
+          echo "release tag: $tag"
+          files="leoh-chat-mac.dmg leoh-chat-web.tar.gz SHA256SUMS"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # 重跑同一次构建：覆盖已有 Release 的文件
+            gh release upload "$tag" $files --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" $files \
+              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "leoh-chat $VERSION ($BUILD)" \
+              --notes "macOS（Apple 芯片）与网页版。安卓版见 https://chat.leoh.top/download"
+          fi
