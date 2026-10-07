@@ -81,7 +81,7 @@ jobs:
           cache: true
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
+          targets: aarch64-apple-darwin
       - name: Build macOS app
         working-directory: src
         run: |
@@ -120,4 +120,4 @@ jobs:
           gh release create "$tag" leoh-chat-mac.dmg leoh-chat-web.tar.gz SHA256SUMS \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "leoh-chat $VERSION ($BUILD)" \
-            --notes "macOS（Apple 芯片和 Intel 通用）与网页版。安卓版见 https://chat.leoh.top/download"
+            --notes "macOS（Apple 芯片）与网页版。安卓版见 https://chat.leoh.top/download"

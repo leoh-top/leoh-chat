@@ -336,6 +336,10 @@ for ent in ("macos/Runner/DebugProfile.entitlements", "macos/Runner/Release.enti
     p = src / ent
     p.write_text(re.sub(r"\s*<key>keychain-access-groups</key>\s*<array\s*/>", "", p.read_text(encoding="utf-8")),
                  encoding="utf-8")
+# 只编 Apple 芯片（arm64）：webcrypto 自带的 BoringSSL 在 x86_64 上链接失败（缺 p256_adx_* 汇编符号）
+for cfgname in ("Debug", "Release"):
+    sub(f"macos/Runner/Configs/{cfgname}.xcconfig", '#include "Warnings.xcconfig"',
+        '#include "Warnings.xcconfig"\nARCHS = arm64\nONLY_ACTIVE_ARCH = NO')
 # macOS 图标惯例四周留白约 10%
 mac_icon = compose("mac.svg", ["full.svg"], 0.8)
 for size in (16, 32, 64, 128, 256, 512, 1024):
