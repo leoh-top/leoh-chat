@@ -1,0 +1,5 @@
+/build
+/src
+*.jks
+key.properties
+.DS_Store

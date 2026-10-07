@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 432 432">
+  <!-- 完整图标（圆角方形），用于旧版启动器、App 内 logo、下载页 -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22C1A4"/>
+      <stop offset="1" stop-color="#0B7A8F"/>
+    </linearGradient>
+  </defs>
+  <rect width="432" height="432" rx="96" fill="url(#g)"/>
+  <g transform="translate(216 216) scale(1.35) translate(-216 -221)">
+    <path fill="#FFFFFF" d="M216 120c-62 0-112 41-112 92 0 28 15 53 39 70l-10 40c-1 5 4 9 8 6l46-26c9 2 19 3 29 3 62 0 112-41 112-93s-50-92-112-92z"/>
+    <circle cx="170" cy="212" r="15" fill="#0E9F8A"/>
+    <circle cx="216" cy="212" r="15" fill="#0E9F8A"/>
+    <circle cx="262" cy="212" r="15" fill="#0E9F8A"/>
+  </g>
+</svg>

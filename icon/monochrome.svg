@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 432 432">
+  <!-- 单色图标/通知图标：气泡挖空三个点 -->
+  <defs>
+    <mask id="m">
+      <rect width="432" height="432" fill="white"/>
+      <circle cx="170" cy="212" r="15" fill="black"/>
+      <circle cx="216" cy="212" r="15" fill="black"/>
+      <circle cx="262" cy="212" r="15" fill="black"/>
+    </mask>
+  </defs>
+  <path mask="url(#m)" fill="#FFFFFF" d="M216 120c-62 0-112 41-112 92 0 28 15 53 39 70l-10 40c-1 5 4 9 8 6l46-26c9 2 19 3 29 3 62 0 112-41 112-93s-50-92-112-92z"/>
+</svg>

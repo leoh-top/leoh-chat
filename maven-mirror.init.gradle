@@ -1,0 +1,21 @@
+// 只给leoh-chat构建用：repo.maven.apache.org 在这边连不上，把 Maven Central 换成阿里云镜像。
+// build-android.sh 用独立的 GRADLE_USER_HOME 并把本文件放进它的 init.d，不影响其他项目。
+def central = ['https://repo.maven.apache.org/maven2', 'https://repo1.maven.org/maven2']
+def mirror = 'https://maven.aliyun.com/repository/central'
+
+def redirect = { RepositoryHandler repos ->
+    repos.withType(MavenArtifactRepository).configureEach { r ->
+        if (central.any { r.url.toString().startsWith(it) }) {
+            r.url = mirror
+        }
+    }
+}
+
+settingsEvaluated { settings ->
+    redirect(settings.pluginManagement.repositories)
+    redirect(settings.dependencyResolutionManagement.repositories)
+}
+allprojects {
+    buildscript { redirect(repositories) }
+    redirect(repositories)
+}

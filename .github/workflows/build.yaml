@@ -1,0 +1,123 @@
+# 构建 leoh-chat 的 macOS（.dmg）和网页版（.tar.gz），发布到 GitHub Release。
+# 推送 v* 标签或手动运行（Actions → Build → Run workflow）触发。安卓版在本地用 build-android.sh 构建（需要签名密钥）。
+name: Build
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.v.outputs.build }}
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: |
+          . ./versions.env
+          echo "version=${FLUFFY_TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "build=$(date -u +%y%m%d%H)" >> "$GITHUB_OUTPUT"
+
+  web:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch FluffyChat and apply leoh-chat changes
+        run: |
+          . ./versions.env
+          echo "FLUTTER_TAG=$FLUTTER_TAG" >> "$GITHUB_ENV"
+          sudo apt-get update && sudo apt-get install -y librsvg2-bin
+          git clone -q --depth 1 --branch "$FLUFFY_TAG" https://github.com/krille-chan/fluffychat.git src
+          python3 rebrand.py src
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_TAG }}
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup toolchain install nightly --component rust-src
+      - name: Build web
+        working-directory: src
+        run: |
+          flutter pub get
+          ./scripts/prepare-web.sh
+          rm -f ./assets/vodozemac/.gitignore
+          # 不从 Google CDN 加载 CanvasKit（国内连不上），全部打包到本站
+          flutter build web --release --no-web-resources-cdn --base-href / \
+            --build-name ${{ needs.prepare.outputs.version }} --build-number ${{ needs.prepare.outputs.build }}
+          tar -czf ../leoh-chat-web.tar.gz -C build/web .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: leoh-chat-web.tar.gz
+
+  macos:
+    needs: prepare
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch FluffyChat and apply leoh-chat changes
+        run: |
+          . ./versions.env
+          echo "FLUTTER_TAG=$FLUTTER_TAG" >> "$GITHUB_ENV"
+          brew install librsvg
+          git clone -q --depth 1 --branch "$FLUFFY_TAG" https://github.com/krille-chan/fluffychat.git src
+          python3 rebrand.py src
+      - name: Use the Xcode version upstream builds with
+        run: |
+          if [ -d /Applications/Xcode_26.3.app ]; then sudo xcode-select --switch /Applications/Xcode_26.3.app; fi
+          xcodebuild -version
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_TAG }}
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - name: Build macOS app
+        working-directory: src
+        run: |
+          flutter pub get
+          flutter build macos --release \
+            --build-name ${{ needs.prepare.outputs.version }} --build-number ${{ needs.prepare.outputs.build }}
+      - name: Package .dmg
+        run: |
+          app="src/build/macos/Build/Products/Release/leoh-chat.app"
+          codesign --verify --deep "$app"
+          mkdir dmg && cp -R "$app" dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname leoh-chat -srcfolder dmg -ov -format UDZO leoh-chat-mac.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: leoh-chat-mac.dmg
+
+  release:
+    needs: [prepare, web, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          BUILD: ${{ needs.prepare.outputs.build }}
+        run: |
+          sha256sum leoh-chat-mac.dmg leoh-chat-web.tar.gz > SHA256SUMS
+          tag="${GITHUB_REF_NAME}"
+          [ "$GITHUB_REF_TYPE" = tag ] || tag="build-$BUILD"
+          gh release create "$tag" leoh-chat-mac.dmg leoh-chat-web.tar.gz SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "leoh-chat $VERSION ($BUILD)" \
+            --notes "macOS（Apple 芯片和 Intel 通用）与网页版。安卓版见 https://chat.leoh.top/download"
