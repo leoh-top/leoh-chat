@@ -314,6 +314,11 @@ def render_path(svg_path, out, size):
 
 
 # --- macOS：改名、包名、免签名（ad-hoc），图标 ---
+# ad-hoc 签名拿不到钥匙串权限，本地数据库没法加密（上游会退回不加密并弹一次“数据库未加密”的通知）。
+# 聊天本身是服务器端存储，这条通知对普通用户只会造成困惑，在 macOS 上不弹
+sub("lib/utils/matrix_sdk_extensions/flutter_matrix_dart_sdk_database/cipher.dart",
+    "  if (isStored == true) return;",
+    "  if (isStored == true || PlatformInfos.isMacOS) return;")
 xc = "macos/Runner/Configs/AppInfo.xcconfig"
 sub(xc, "PRODUCT_NAME = FluffyChat", f"PRODUCT_NAME = {APP_NAME_EN}")
 sub(xc, "PRODUCT_BUNDLE_IDENTIFIER = im.fluffychat.app", f"PRODUCT_BUNDLE_IDENTIFIER = {PKG}")
